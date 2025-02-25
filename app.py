@@ -1,5 +1,5 @@
 import streamlit as st
-import PyMuPDF
+import fitz  # PyMuPDF
 import docx
 import matplotlib.pyplot as plt
 import seaborn as sns
@@ -23,7 +23,7 @@ def load_document(file):
     """Extracts text from a document (PDF, DOCX, TXT)."""
     text = ""
     if file.type == "application/pdf":
-        pdf = PyMuPDF.open(file)
+        pdf = fitz.open(stream=file.read(), filetype="pdf")
         for page in pdf:
             text += page.get_text("text")
     elif file.type == "application/vnd.openxmlformats-officedocument.wordprocessingml.document":
@@ -41,11 +41,13 @@ def detect_language(text):
 
 def summarize_text(text, lang):
     """Summarizes the document using OpenAI's GPT, with multilingual support."""
-    prompt = f"Summarize this in {lang}: {text[:2000]}"
-    response = openai.ChatCompletion.create(
-        model="gpt-4", messages=[{"role": "user", "content": prompt}]
+    client = openai.OpenAI()
+    response = client.chat.completions.create(
+        model="gpt-4",
+        messages=[
+            {"role": "user", "content": f"Summarize this in {lang}: {text[:2000]}"}]
     )
-    return response["choices"][0]["message"]["content"]
+    return response.choices[0].message.content
 
 
 def extract_keywords(text):
