@@ -5,18 +5,26 @@ import matplotlib.pyplot as plt
 import seaborn as sns
 import numpy as np
 from wordcloud import WordCloud
-from transformers import pipeline
+from transformers import pipeline, BartForConditionalGeneration, BartTokenizer
 import openai
 import os
 import langdetect
 from sklearn.feature_extraction.text import CountVectorizer
 import spacy
+from openai import OpenAI
 
 # Set OpenAI API Key (replace with your key)
 os.environ["OPENAI_API_KEY"] = "your-openai-api-key"
 
 # Load Spacy NLP model
 nlp_spacy = spacy.load("en_core_web_sm")
+
+# Load Hugging Face summarization model
+bart_model = BartForConditionalGeneration.from_pretrained(
+    "facebook/bart-large-cnn")
+bart_tokenizer = BartTokenizer.from_pretrained("facebook/bart-large-cnn")
+
+client = OpenAI()
 
 
 def load_document(file):
@@ -40,14 +48,17 @@ def detect_language(text):
 
 
 def summarize_text(text, lang):
-    """Summarizes the document using OpenAI's GPT, with multilingual support."""
-    client = openai.OpenAI()
-    response = client.chat.completions.create(
-        model="gpt-4",
-        messages=[
-            {"role": "user", "content": f"Summarize this in {lang}: {text[:2000]}"}]
-    )
-    return response.choices[0].message.content
+    """Summarizes the document using OpenAI's GPT if available, otherwise falls back to Hugging Face."""
+    try:
+        response = client.chat.completions.create(
+            model="gpt-3.5-turbo",  # Change from "gpt-4"
+            messages=[
+                {"role": "user", "content": f"Summarize this in {lang}: {text[:2000]}"}]
+        )
+        return response.choices[0].message.content
+    except openai.OpenAIError as e:
+        print(f"OpenAI API Error: {e}")
+        return "Summarization failed. Please try again."
 
 
 def extract_keywords(text):
@@ -163,3 +174,4 @@ if uploaded_file:
         st.subheader("🔍 Named Entities")
         named_entities = extract_named_entities(doc_text)
         display_named_entities(named_entities)
+
